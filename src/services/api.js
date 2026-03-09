@@ -5,6 +5,10 @@ export const fetchRehabData = async (isSimulating = false) => {
         return generateSimulationData();
     }
 
+    // Check for Mixed Content issue (HTTPS calling HTTP)
+    const isHttps = window.location.protocol === 'https:';
+    const isLocalDevice = DEVICE_IP.startsWith('http:');
+
     try {
         const response = await fetch(DEVICE_IP, {
             signal: AbortSignal.timeout(1000)
@@ -12,10 +16,23 @@ export const fetchRehabData = async (isSimulating = false) => {
         if (!response.ok) throw new Error('Device not reached');
         return await response.json();
     } catch (error) {
-        console.warn('Device polling failed, falling back to simulation', error.message);
-        return generateSimulationData(true); // simulated data but with "disconnected" flag
+        let status = "Offline";
+        let mixedContentError = false;
+
+        if (isHttps && isLocalDevice) {
+            console.error("Mixed Content Error: HTTPS site cannot call HTTP device directly. Use Localhost for full hardware support or allow 'Insecure Content' in browser settings.");
+            mixedContentError = true;
+            status = "Mixed Content Error";
+        }
+
+        return {
+            ...generateSimulationData(true),
+            status: status,
+            mixedContentError: mixedContentError
+        };
     }
 };
+
 
 const generateSimulationData = (isOffline = false) => {
     const time = Date.now();

@@ -141,6 +141,16 @@ const App = () => {
                   }
                 </p>
               </div>
+
+              {data.mixedContentError && (
+                <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255, 62, 62, 0.1)', borderRadius: '10px', border: '1px solid var(--accent-red)' }}>
+                  <p style={{ fontSize: '12px', color: 'var(--accent-red)', fontWeight: 'bold' }}>
+                    {lang === 'uk'
+                      ? "Помилка безпеки: Браузер блокує запит до пристрою через HTTPS. Будь ласка, дозвольте 'Небезпечний контент' у налаштуваннях браузера або використовуйте localhost."
+                      : "Security Error: Mixed Content blocked. Please allow 'Insecure content' in browser site settings to connect to the device from Vercel."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
