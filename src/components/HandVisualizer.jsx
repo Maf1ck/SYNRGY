@@ -71,4 +71,3 @@ const HandVisualizer = ({ injuredAngle, healthyAngle, t }) => {
 };
 
 export default HandVisualizer;
-```
