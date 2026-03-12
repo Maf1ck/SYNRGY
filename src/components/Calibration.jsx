@@ -4,16 +4,13 @@ import { Save, RefreshCw, ChevronLeft } from 'lucide-react';
 
 const Calibration = ({ isOpen, onClose, t }) => {
     const [calib, setCalib] = useState(getCalibration());
-    const [currentRaw, setCurrentRaw] = useState({ healthy: 512, injured: 512 });
+    const [currentRaw, setCurrentRaw] = useState(512);
 
     // Simulate reading raw values periodically while calibration is open
     useEffect(() => {
         if (!isOpen) return;
         const interval = setInterval(() => {
-            setCurrentRaw({
-                healthy: 400 + Math.floor(Math.random() * 200),
-                injured: 400 + Math.floor(Math.random() * 200)
-            });
+            setCurrentRaw(400 + Math.floor(Math.random() * 200));
         }, 500);
         return () => clearInterval(interval);
     }, [isOpen]);
@@ -25,10 +22,10 @@ const Calibration = ({ isOpen, onClose, t }) => {
         onClose();
     };
 
-    const setMinmax = (hand, type) => {
+    const setMinmax = (type) => {
         setCalib(prev => ({
             ...prev,
-            [hand]: { ...prev[hand], [type]: currentRaw[hand] }
+            hand: { ...prev.hand, [type]: currentRaw }
         }));
     };
 
@@ -49,40 +46,38 @@ const Calibration = ({ isOpen, onClose, t }) => {
                 <h2 style={{ textAlign: 'center', marginBottom: '2rem' }} className="gradient-text">{t.title}</h2>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-                    {['healthy', 'injured'].map(hand => (
-                        <div key={hand} className="premium-card" style={{ padding: '15px', background: 'var(--bg-tertiary)' }}>
-                            <h3 style={{ textTransform: 'capitalize', marginBottom: '10px' }}>
-                                {hand === 'healthy' ? t.healthyHand : t.injuredHand}
-                            </h3>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                                <div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.currentRaw}</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-cyan)' }}>{currentRaw[hand]}</div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.range}</div>
-                                    <div style={{ fontSize: '12px' }}>{calib[hand].min} - {calib[hand].max}</div>
-                                </div>
+                    <div className="premium-card" style={{ padding: '15px', background: 'var(--bg-tertiary)' }}>
+                        <h3 style={{ textTransform: 'capitalize', marginBottom: '10px' }}>
+                            {t.hand}
+                        </h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                            <div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.currentRaw}</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-cyan)' }}>{currentRaw}</div>
                             </div>
-
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button
-                                    className="secondary"
-                                    style={{ flex: 1, fontSize: '12px' }}
-                                    onClick={() => setMinmax(hand, 'min')}
-                                >
-                                    {t.setMin}
-                                </button>
-                                <button
-                                    className="secondary"
-                                    style={{ flex: 1, fontSize: '12px' }}
-                                    onClick={() => setMinmax(hand, 'max')}
-                                >
-                                    {t.setMax}
-                                </button>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.range}</div>
+                                <div style={{ fontSize: '12px' }}>{calib.hand.min} - {calib.hand.max}</div>
                             </div>
                         </div>
-                    ))}
+
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                className="secondary"
+                                style={{ flex: 1, fontSize: '12px' }}
+                                onClick={() => setMinmax('min')}
+                            >
+                                {t.setMin}
+                            </button>
+                            <button
+                                className="secondary"
+                                style={{ flex: 1, fontSize: '12px' }}
+                                onClick={() => setMinmax('max')}
+                            >
+                                {t.setMax}
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div style={{ marginTop: '2rem', display: 'flex', gap: '15px' }}>

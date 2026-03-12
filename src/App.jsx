@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 
 const App = () => {
-  const { data, sessionStats } = useRehabData(200);
+  const [activeExKey, setActiveExKey] = useState(null);
+  const [lang, setLang] = useState('uk');
+  const t = translations[lang];
+
+  const activeExercise = activeExKey ? t.exercises[activeExKey] : null;
+  const { data, sessionStats } = useRehabData(100, activeExercise);
   const [userProfile] = useState({ age: 25, restingHR: 65 });
   const [isCalibOpen, setIsCalibOpen] = useState(false);
-  const [lang, setLang] = useState('uk'); // Default to Ukrainian as requested
-
-  const t = translations[lang];
 
   // Karvonen Calculation
   const maxHR = 220 - userProfile.age;
@@ -78,11 +80,27 @@ const App = () => {
       </header>
 
       {/* Main Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 2fr', gap: '20px' }}>
 
-        {/* Left Column: Hand Visualization */}
+        {/* Left Column: Exercises & Stats */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <HandVisualizer injuredAngle={data.injured} healthyAngle={data.healthy} t={t} />
+
+          <div className="premium-card">
+            <h3 style={{ marginBottom: '15px' }}>{t.exercises.title}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {['ex1', 'ex2', 'ex3'].map(key => (
+                <button
+                  key={key}
+                  className={activeExKey === key ? "primary" : "secondary"}
+                  style={{ textAlign: 'left', padding: '15px', display: 'flex', flexDirection: 'column', gap: '5px' }}
+                  onClick={() => setActiveExKey(activeExKey === key ? null : key)}
+                >
+                  <span style={{ fontWeight: 'bold' }}>{t.exercises[key].name}</span>
+                  <span style={{ fontSize: '11px', opacity: 0.8 }}>{t.exercises[key].target}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="premium-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
@@ -104,22 +122,34 @@ const App = () => {
           </div>
         </div>
 
-        {/* Right Column: Heart Rate and Stats */}
+        {/* Right Column: Visualizer & Real-time Chart */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-          <div className="premium-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div style={{ background: 'rgba(255, 62, 62, 0.1)', padding: '15px', borderRadius: '15px' }}>
-                <Heart color="var(--accent-red)" size={32} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px' }}>
+            <HandVisualizer angle={data.angle} gyro={data.gyro} t={t} exercise={activeExercise} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="premium-card" style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+                  <div style={{ background: 'rgba(255, 62, 62, 0.1)', padding: '15px', borderRadius: '15px' }}>
+                    <Heart color="var(--accent-red)" size={32} />
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{t.currentBpm}</span>
+                    <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{data.hr}</div>
+                  </div>
+                </div>
+                <div style={{ color: zone.color, fontWeight: 'bold', fontSize: '16px' }}>{zone.label}</div>
               </div>
-              <div>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{t.currentBpm}</span>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>{data.hr} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>bpm</span></div>
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ color: zone.color, fontWeight: 'bold', fontSize: '18px' }}>{zone.label}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.zones.zone} {Math.floor(currentIntensity / 20) + 1}</div>
+
+              {activeExercise?.hold && (
+                <div className="premium-card" style={{ flex: 1 }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '10px' }}>{t.exercises.hold}</div>
+                  <div style={{ height: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${data.holdProgress}%`, height: '100%', background: 'var(--accent-green)', transition: 'width 0.1s' }} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -127,27 +157,27 @@ const App = () => {
 
           <div className="premium-card">
             <h3>{t.medicalInsights}</h3>
-            <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {activeExercise && (
+              <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(0, 242, 255, 0.05)', borderRadius: '10px', borderLeft: '4px solid var(--accent-cyan)', marginBottom: '15px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{activeExercise.name}</p>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{activeExercise.desc}</p>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'start' }}>
                 <CheckCircle2 color="var(--accent-green)" size={18} />
-                <p style={{ fontSize: '14px' }} dangerouslySetInnerHTML={{ __html: t.insights.rom.replace('{val}', Math.round(data.injured)) }} />
+                <p style={{ fontSize: '14px' }} dangerouslySetInnerHTML={{ __html: t.insights.rom.replace('{val}', Math.round(data.angle)) }} />
               </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'start' }}>
-                <Bell color="var(--accent-orange)" size={18} />
-                <p style={{ fontSize: '14px' }}>
-                  {data.hr > 140
-                    ? t.insights.pulseAlert.replace('{val}', data.hr)
-                    : t.insights.pulseNormal
-                  }
-                </p>
-              </div>
-
-              {data.mixedContentError && (
-                <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255, 62, 62, 0.1)', borderRadius: '10px', border: '1px solid var(--accent-red)' }}>
+              {data.hr > 140 && (
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'start' }}>
+                  <Bell color="var(--accent-orange)" size={18} />
+                  <p style={{ fontSize: '14px' }}>{t.insights.pulseAlert.replace('{val}', data.hr)}</p>
+                </div>
+              )}
+              {data.isOffline && data.error && (
+                <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '10px', border: '1px solid var(--accent-red)' }}>
                   <p style={{ fontSize: '12px', color: 'var(--accent-red)', fontWeight: 'bold' }}>
-                    {lang === 'uk'
-                      ? "Помилка безпеки: Браузер блокує запит до пристрою через HTTPS. Будь ласка, дозвольте 'Небезпечний контент' у налаштуваннях браузера або використовуйте localhost."
-                      : "Security Error: Mixed Content blocked. Please allow 'Insecure content' in browser site settings to connect to the device from Vercel."}
+                    {lang === 'uk' ? 'Помилка зв\'язку: ' : 'Connection Error: '} {data.error}
                   </p>
                 </div>
               )}

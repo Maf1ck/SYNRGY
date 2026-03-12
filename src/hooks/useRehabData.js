@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchRehabData, getCalibration } from '../services/api';
+import { audioService } from '../services/audio';
 
-export const useRehabData = (pollingInterval = 100) => {
+export const useRehabData = (pollingInterval = 100, activeExercise = null) => {
     const [data, setData] = useState({
-        healthy: 0,
-        injured: 0,
+        angle: 0,
         hr: 0,
         reps: 0,
         status: 'Initializing...',
-        isOffline: true
+        isOffline: true,
+        holdProgress: 0
     });
 
     const [sessionStats, setSessionStats] = useState({
@@ -20,25 +21,95 @@ export const useRehabData = (pollingInterval = 100) => {
     });
 
     const lastRepTime = useRef(Date.now());
-    const isFlexed = useRef(false);
+    const isFlexed = useRef(false); // true when reaching upper target
+    const isExtended = useRef(false); // true when reaching lower target
     const startTime = useRef(Date.now());
+    const holdStartTime = useRef(null);
+    const audioDebounce = useRef({ up: false, down: false });
+
+    // Helper to map raw value to degrees [0, 180]
+    const mapRawToDeg = (val, cal) => {
+        const { min, max } = cal.hand;
+        // Simple linear mapping: min -> 0 deg, max -> 130 deg (as per ElbowArm limits)
+        // Adjusting to 180 based on user request "180 to 90"
+        const angle = ((val - min) / (max - min)) * 180;
+        return Math.max(0, Math.min(180, angle));
+    };
 
     useEffect(() => {
         const poll = async () => {
-            const result = await fetchRehabData(false); // will fallback to sim if device not found
+            const result = await fetchRehabData(false);
+            const calib = getCalibration();
+
+            // Prioritize hardware angle if available, then fallback to simulation/mapping
+            let currentAngle = 0;
+            if (!result.isOffline) {
+                // If hardware provides angle, use it. Otherwise map raw values.
+                currentAngle = (result.angle !== undefined) ? result.angle : mapRawToDeg(result.raw || 512, calib);
+            } else {
+                currentAngle = result.elbow; // From simulation
+            }
 
             setData(prev => {
-                // Logic for repetition counting (client-side for better response)
-                // If injured hand flexes > 60 and then returns < 20
-                const currentAngle = result.injured;
                 let newReps = sessionStats.reps;
+                let holdProgress = 0;
 
-                if (currentAngle > 60 && !isFlexed.current) {
-                    isFlexed.current = true;
-                } else if (currentAngle < 20 && isFlexed.current) {
-                    isFlexed.current = false;
-                    newReps += 1;
-                    lastRepTime.current = Date.now();
+                if (activeExercise) {
+                    const { target } = activeExercise;
+                    const [targetLow, targetHigh] = target.split(' - ').map(s => parseInt(s)).sort((a, b) => a - b);
+
+                    // Logic for reaching limits
+                    const reachedHigh = currentAngle >= targetHigh;
+                    const reachedLow = currentAngle <= targetLow;
+
+                    // Audio feedback for limits
+                    if (reachedHigh && !audioDebounce.current.up) {
+                        audioService.playLimit();
+                        audioDebounce.current.up = true;
+                    } else if (!reachedHigh) {
+                        audioDebounce.current.up = false;
+                    }
+
+                    if (reachedLow && !audioDebounce.current.down) {
+                        audioService.playLimit();
+                        audioDebounce.current.down = true;
+                    } else if (!reachedLow) {
+                        audioDebounce.current.down = false;
+                    }
+
+                    // Repetition counting
+                    if (reachedHigh && !isFlexed.current) {
+                        isFlexed.current = true;
+                        // If it's a hold exercise (e.g. ex3), start counter
+                        if (activeExercise.hold) {
+                            holdStartTime.current = Date.now();
+                        }
+                    } else if (reachedLow && isFlexed.current) {
+                        // Complete a rep only if we return to the bottom
+                        isFlexed.current = false;
+                        newReps += 1;
+                        audioService.playSuccess();
+                    }
+
+                    // Handle Hold
+                    if (activeExercise.hold && isFlexed.current && holdStartTime.current) {
+                        const elapsed = Date.now() - holdStartTime.current;
+                        const targetMs = parseInt(activeExercise.hold) * 1000;
+                        holdProgress = Math.min(100, (elapsed / targetMs) * 100);
+
+                        if (elapsed >= targetMs) {
+                            holdStartTime.current = null;
+                            // Optionally play another sound or wait for extension
+                        }
+                    }
+                } else {
+                    // Fallback to basic rep counting if no exercise
+                    if (currentAngle > 100 && !isFlexed.current) {
+                        isFlexed.current = true;
+                    } else if (currentAngle < 30 && isFlexed.current) {
+                        isFlexed.current = false;
+                        newReps += 1;
+                    }
                 }
 
                 // Update session stats
@@ -46,8 +117,8 @@ export const useRehabData = (pollingInterval = 100) => {
                     const newHistory = [...prevStats.history, {
                         time: (Date.now() - startTime.current) / 1000,
                         hr: result.hr,
-                        injured: result.injured
-                    }].slice(-100); // keep last 100 points for real-time chart
+                        angle: currentAngle
+                    }].slice(-100);
 
                     return {
                         ...prevStats,
@@ -59,13 +130,13 @@ export const useRehabData = (pollingInterval = 100) => {
                     };
                 });
 
-                return { ...result, reps: newReps };
+                return { ...result, angle: currentAngle, reps: newReps, holdProgress };
             });
         };
 
         const interval = setInterval(poll, pollingInterval);
         return () => clearInterval(interval);
-    }, [pollingInterval, sessionStats.reps]);
+    }, [pollingInterval, sessionStats.reps, activeExercise]);
 
     return { data, sessionStats };
 };

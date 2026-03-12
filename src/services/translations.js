@@ -11,8 +11,15 @@ export const translations = {
         medicalInsights: "Medical Insights",
         exportData: "Export Data",
         settings: "Settings",
-        handFlexion: "Finger Flexion",
+        handFlexion: "Elbow Flexion",
         realTimeData: "Real-time sensor data",
+        arm: "Arm",
+        difference: "Difference",
+        elbowLabel: "Elbow flexion",
+        gyroTitle: "Arm orientation (gyro)",
+        gyroPitch: "Pitch",
+        gyroRoll: "Roll",
+        gyroYaw: "Yaw",
         zones: {
             rest: "Rest",
             warmup: "Warm up",
@@ -22,14 +29,38 @@ export const translations = {
             zone: "Zone"
         },
         calibration: {
-            title: "Sensor Calibration",
-            healthyHand: "Healthy Hand",
-            injuredHand: "Injured Hand",
+            title: "Calibration",
+            hand: "Hand Sensor",
             currentRaw: "Current Raw",
             range: "Range",
             setMin: "Set Min (Relax)",
-            setMax: "Set Max (Clench)",
-            save: "Save Configuration"
+            setMax: "Set Max (Flex)",
+            save: "Save"
+        },
+        exercises: {
+            title: "Exercise Catalog",
+            technique: "Technique",
+            target: "Target",
+            tempo: "Tempo",
+            hold: "Hold",
+            ex1: {
+                name: "Push-ups",
+                desc: "Triceps endurance and axial joint loading.",
+                target: "90° - 180°",
+                tempo: "12-15 reps/min"
+            },
+            ex2: {
+                name: "Dumbbell Curls",
+                desc: "Biceps hypertrophy and range of motion (ROM).",
+                target: "0° - 170°",
+                tempo: "Smooth execution"
+            },
+            ex3: {
+                name: "Band Exercises",
+                desc: "Ligament elasticity via progressive resistance.",
+                target: "45° - 170°",
+                hold: "2s hold"
+            }
         },
         insights: {
             rom: "Range of motion is consistent at <strong>{val}°</strong> average.",
@@ -56,8 +87,15 @@ export const translations = {
         medicalInsights: "Медичні інсайти",
         exportData: "Експорт даних",
         settings: "Налаштування",
-        handFlexion: "Згинання пальців",
-        realTimeData: "Дані з сенсорів у реальному часі",
+        handFlexion: "Згинання ліктя",
+        realTimeData: "Дані з сенсора у реальному часі",
+        arm: "Рука",
+        difference: "Різниця",
+        elbowLabel: "Згинання ліктя",
+        gyroTitle: "Орієнтація руки (гіроскоп)",
+        gyroPitch: "Нахил",
+        gyroRoll: "Крен",
+        gyroYaw: "Рискання",
         zones: {
             rest: "Спокій",
             warmup: "Розминка",
@@ -67,14 +105,38 @@ export const translations = {
             zone: "Зона"
         },
         calibration: {
-            title: "Калібрування сенсорів",
-            healthyHand: "Здорова рука",
-            injuredHand: "Травмована рука",
+            title: "Калібрування",
+            hand: "Датчик руки",
             currentRaw: "Поточне значення",
             range: "Діапазон",
             setMin: "Мін (Розслаблено)",
             setMax: "Макс (Зігнуто)",
-            save: "Зберегти налаштування"
+            save: "Зберегти"
+        },
+        exercises: {
+            title: "Каталог вправ",
+            technique: "Техніка",
+            target: "Ціль",
+            tempo: "Темп",
+            hold: "Утримання",
+            ex1: {
+                name: "Відтискання",
+                desc: "Тренування витривалості трицепса та осьове навантаження.",
+                target: "90° - 180°",
+                tempo: "12-15 пов/хв"
+            },
+            ex2: {
+                name: "Згинання з гантелею",
+                desc: "Гіпертрофія біцепса та збільшення амплітуди рухів.",
+                target: "0° - 170°",
+                tempo: "Плавне виконання"
+            },
+            ex3: {
+                name: "Вправи з еспандером",
+                desc: "Відновлення еластичності зв'язок через опір.",
+                target: "45° - 170°",
+                hold: "2 сек утримання"
+            }
         },
         insights: {
             rom: "Амплітуда рухів стабільна: в середньому <strong>{val}°</strong>.",
