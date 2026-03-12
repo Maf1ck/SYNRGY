@@ -71,7 +71,7 @@ const App = () => {
           <div className="premium-card" style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div className={`status-indicator ${data.isOffline ? 'status-offline' : 'status-online'}`} />
             <span style={{ fontSize: '14px', fontWeight: '600' }}>
-              {data.isOffline ? t.simulator : t.hardware}
+              {data.isOffline ? t.offline || 'Offline' : t.hardware}
             </span>
           </div>
           <button className="secondary" onClick={exportData} title={t.exportData}><Download size={18} /></button>

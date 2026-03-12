@@ -1,10 +1,6 @@
 const DEVICE_IP = 'http://192.168.4.1';
 
-export const fetchRehabData = async (isSimulating = false) => {
-    if (isSimulating) {
-        return generateSimulationData();
-    }
-
+export const fetchRehabData = async () => {
     try {
         // We use /state as the primary source for angle, reps, and flags
         // based on the verified combined (2).html logic.
@@ -16,13 +12,13 @@ export const fetchRehabData = async (isSimulating = false) => {
         const state = await response.json();
 
         // Also try to get pulse data if available
-        let pulseData = { hr: 0 };
+        let pulseData = { hr: 0, gyro: {} };
         try {
             const pulseRes = await fetch(`${DEVICE_IP}/data`, { signal: AbortSignal.timeout(1000) });
             if (pulseRes.ok) {
                 const pulseJson = await pulseRes.json();
                 pulseData.hr = pulseJson.bpm || 0;
-                pulseData.gyro = pulseJson.imu;
+                pulseData.gyro = pulseJson.imu || {};
             }
         } catch (e) { /* pulse might be optional */ }
 
@@ -30,43 +26,13 @@ export const fetchRehabData = async (isSimulating = false) => {
             ...state,
             elbow: state.angle, // for backward compatibility in useRehabData
             hr: pulseData.hr,
-            gyro: pulseData.gyro || state.gyro || {},
+            gyro: pulseData.gyro,
             status: "Connected",
             isOffline: false
         };
     } catch (error) {
-        return {
-            ...generateSimulationData(true),
-            status: "Offline",
-            isOffline: true,
-            error: error.message
-        };
+        throw error; // Let the hook handle the error state
     }
-};
-
-
-const generateSimulationData = (isOffline = false) => {
-    const time = Date.now();
-    const t = time / 1000;
-    // Elbow angle: 0° (straight) to 130° (fully bent)
-    const elbowAngle = 65 + Math.sin(t * 0.8) * 55;
-
-    return {
-        elbow: parseFloat(elbowAngle.toFixed(1)),
-        // back-compat aliases so nothing else breaks
-        injured: parseFloat(elbowAngle.toFixed(1)),
-        healthy: parseFloat(elbowAngle.toFixed(1)),
-        hr: 75 + Math.floor(Math.random() * 10),
-        reps: Math.floor(t / 5) % 100,
-        // Simulated gyroscope orientation (degrees)
-        gyro: {
-            pitch: parseFloat((Math.sin(t * 0.4) * 40).toFixed(1)),  // fore-aft tilt
-            roll: parseFloat((Math.cos(t * 0.3) * 25).toFixed(1)),  // side tilt
-            yaw: parseFloat((Math.sin(t * 0.2) * 60).toFixed(1)),  // rotation around vertical
-        },
-        status: isOffline ? "Offline (Simulated)" : "Connected (Simulated)",
-        isOffline: isOffline
-    };
 };
 
 export const saveCalibration = (data) => {

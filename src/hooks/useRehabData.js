@@ -38,100 +38,103 @@ export const useRehabData = (pollingInterval = 100, activeExercise = null) => {
 
     useEffect(() => {
         const poll = async () => {
-            const result = await fetchRehabData(false);
-            const calib = getCalibration();
+            try {
+                const result = await fetchRehabData();
+                const calib = getCalibration();
 
-            // Prioritize hardware angle if available, then fallback to simulation/mapping
-            let currentAngle = 0;
-            if (!result.isOffline) {
                 // If hardware provides angle, use it. Otherwise map raw values.
-                currentAngle = (result.angle !== undefined) ? result.angle : mapRawToDeg(result.raw || 512, calib);
-            } else {
-                currentAngle = result.elbow; // From simulation
-            }
+                const currentAngle = (result.angle !== undefined) ? result.angle : mapRawToDeg(result.raw || 512, calib);
 
-            setData(prev => {
-                let newReps = sessionStats.reps;
-                let holdProgress = 0;
+                setData(prev => {
+                    let newReps = sessionStats.reps;
+                    let holdProgress = 0;
 
-                if (activeExercise) {
-                    const { target } = activeExercise;
-                    const [targetLow, targetHigh] = target.split(' - ').map(s => parseInt(s)).sort((a, b) => a - b);
+                    if (activeExercise) {
+                        const { target } = activeExercise;
+                        const [targetLow, targetHigh] = target.split(' - ').map(s => parseInt(s)).sort((a, b) => a - b);
 
-                    // Logic for reaching limits
-                    const reachedHigh = currentAngle >= targetHigh;
-                    const reachedLow = currentAngle <= targetLow;
+                        // Logic for reaching limits
+                        const reachedHigh = currentAngle >= targetHigh;
+                        const reachedLow = currentAngle <= targetLow;
 
-                    // Audio feedback for limits
-                    if (reachedHigh && !audioDebounce.current.up) {
-                        audioService.playLimit();
-                        audioDebounce.current.up = true;
-                    } else if (!reachedHigh) {
-                        audioDebounce.current.up = false;
-                    }
-
-                    if (reachedLow && !audioDebounce.current.down) {
-                        audioService.playLimit();
-                        audioDebounce.current.down = true;
-                    } else if (!reachedLow) {
-                        audioDebounce.current.down = false;
-                    }
-
-                    // Repetition counting
-                    if (reachedHigh && !isFlexed.current) {
-                        isFlexed.current = true;
-                        // If it's a hold exercise (e.g. ex3), start counter
-                        if (activeExercise.hold) {
-                            holdStartTime.current = Date.now();
+                        // Audio feedback for limits
+                        if (reachedHigh && !audioDebounce.current.up) {
+                            audioService.playLimit();
+                            audioDebounce.current.up = true;
+                        } else if (!reachedHigh) {
+                            audioDebounce.current.up = false;
                         }
-                    } else if (reachedLow && isFlexed.current) {
-                        // Complete a rep only if we return to the bottom
-                        isFlexed.current = false;
-                        newReps += 1;
-                        audioService.playSuccess();
-                    }
 
-                    // Handle Hold
-                    if (activeExercise.hold && isFlexed.current && holdStartTime.current) {
-                        const elapsed = Date.now() - holdStartTime.current;
-                        const targetMs = parseInt(activeExercise.hold) * 1000;
-                        holdProgress = Math.min(100, (elapsed / targetMs) * 100);
+                        if (reachedLow && !audioDebounce.current.down) {
+                            audioService.playLimit();
+                            audioDebounce.current.down = true;
+                        } else if (!reachedLow) {
+                            audioDebounce.current.down = false;
+                        }
 
-                        if (elapsed >= targetMs) {
-                            holdStartTime.current = null;
-                            // Optionally play another sound or wait for extension
+                        // Repetition counting
+                        if (reachedHigh && !isFlexed.current) {
+                            isFlexed.current = true;
+                            // If it's a hold exercise (e.g. ex3), start counter
+                            if (activeExercise.hold) {
+                                holdStartTime.current = Date.now();
+                            }
+                        } else if (reachedLow && isFlexed.current) {
+                            // Complete a rep only if we return to the bottom
+                            isFlexed.current = false;
+                            newReps += 1;
+                            audioService.playSuccess();
+                        }
+
+                        // Handle Hold
+                        if (activeExercise.hold && isFlexed.current && holdStartTime.current) {
+                            const elapsed = Date.now() - holdStartTime.current;
+                            const targetMs = parseInt(activeExercise.hold) * 1000;
+                            holdProgress = Math.min(100, (elapsed / targetMs) * 100);
+
+                            if (elapsed >= targetMs) {
+                                holdStartTime.current = null;
+                                // Optionally play another sound or wait for extension
+                            }
+                        }
+                    } else {
+                        // Fallback to basic rep counting if no exercise
+                        if (currentAngle > 100 && !isFlexed.current) {
+                            isFlexed.current = true;
+                        } else if (currentAngle < 30 && isFlexed.current) {
+                            isFlexed.current = false;
+                            newReps += 1;
                         }
                     }
-                } else {
-                    // Fallback to basic rep counting if no exercise
-                    if (currentAngle > 100 && !isFlexed.current) {
-                        isFlexed.current = true;
-                    } else if (currentAngle < 30 && isFlexed.current) {
-                        isFlexed.current = false;
-                        newReps += 1;
-                    }
-                }
 
-                // Update session stats
-                setSessionStats(prevStats => {
-                    const newHistory = [...prevStats.history, {
-                        time: (Date.now() - startTime.current) / 1000,
-                        hr: result.hr,
-                        angle: currentAngle
-                    }].slice(-100);
+                    // Update session stats
+                    setSessionStats(prevStats => {
+                        const newHistory = [...prevStats.history, {
+                            time: (Date.now() - startTime.current) / 1000,
+                            hr: result.hr,
+                            angle: currentAngle
+                        }].slice(-100);
 
-                    return {
-                        ...prevStats,
-                        reps: newReps,
-                        maxHR: Math.max(prevStats.maxHR, result.hr),
-                        avgHR: prevStats.avgHR === 0 ? result.hr : (prevStats.avgHR * 0.9 + result.hr * 0.1),
-                        duration: Math.floor((Date.now() - startTime.current) / 1000),
-                        history: newHistory
-                    };
+                        return {
+                            ...prevStats,
+                            reps: newReps,
+                            maxHR: Math.max(prevStats.maxHR, result.hr),
+                            avgHR: prevStats.avgHR === 0 ? result.hr : (prevStats.avgHR * 0.9 + result.hr * 0.1),
+                            duration: Math.floor((Date.now() - startTime.current) / 1000),
+                            history: newHistory
+                        };
+                    });
+
+                    return { ...result, angle: currentAngle, reps: newReps, holdProgress };
                 });
-
-                return { ...result, angle: currentAngle, reps: newReps, holdProgress };
-            });
+            } catch (error) {
+                setData(prev => ({
+                    ...prev,
+                    status: "Offline",
+                    isOffline: true,
+                    error: error.message
+                }));
+            }
         };
 
         const interval = setInterval(poll, pollingInterval);
